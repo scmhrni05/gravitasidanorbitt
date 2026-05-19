@@ -1,0 +1,1483 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gravitasi dan Orbit: Matahari, Bumi & Bulan</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Grotesk:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Import Library 3D: Three.js dan OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        orbitron: ['Orbitron', 'sans-serif'],
+                        space: ['Space Grotesk', 'sans-serif'],
+                    },
+                    colors: {
+                        space: {
+                            900: '#0B0D17',
+                            800: '#15192A',
+                            accent: '#D0D6F9',
+                            glow: '#00F0FF'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background-color: #0B0D17;
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        h1, h2, h3, h4, .title-font {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Star Background Animation */
+        #stars-container {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: -1;
+            background: radial-gradient(circle at bottom, #1B2735 0%, #090A0F 100%);
+            overflow: hidden;
+        }
+        
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle infinite alternate;
+        }
+
+        @keyframes twinkle {
+            0% { opacity: 0.2; transform: scale(0.8); }
+            100% { opacity: 1; transform: scale(1.2); box-shadow: 0 0 10px #fff; }
+        }
+
+        /* Glassmorphism */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .float-anim {
+            animation: floating 4s ease-in-out infinite;
+        }
+        @keyframes floating {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+            100% { transform: translateY(0px); }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+
+        .hidden-page { display: none !important; }
+
+        /* ========================================================= */
+        /* STYLES KHUSUS KUIS INTERAKTIF                             */
+        /* ========================================================= */
+        .quiz-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            transition: all 0.3s ease;
+            position: relative;
+            cursor: pointer;
+        }
+        .quiz-card:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: #00F0FF;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 240, 255, 0.2);
+        }
+
+        /* Kuis Spesifik Animasi */
+        .orbit-dashed { border: 2px dashed rgba(255,255,255,0.3); border-radius: 50%; }
+        .tide-water { transition: transform 0.5s ease-in-out; border-radius: 50%; }
+
+        @keyframes fallIn {
+            0% { transform: translateX(80px) scale(1); opacity: 1; }
+            80% { transform: translateX(-20px) scale(0.6); opacity: 0.8; }
+            100% { transform: translateX(-30px) scale(0); opacity: 0; }
+        }
+        @keyframes flyAway {
+            0% { transform: translateX(0) scale(1); opacity: 1; }
+            100% { transform: translate(120px, -60px) scale(0.4); opacity: 0; }
+        }
+
+        /* ========================================================= */
+        /* STYLES KHUSUS SIMULASI 3D USER                            */
+        /* ========================================================= */
+        :root {
+            --sim-bg-color: #020617; 
+            --sim-panel-bg: rgba(255, 255, 255, 0.85); 
+            --sim-border-color: #cbd5e1;
+            --sim-text-main: #0f172a; 
+        }
+
+        #user-sim-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--sim-bg-color);
+            color: var(--sim-text-main);
+            overflow: hidden;
+        }
+
+        #user-sim-container * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+            touch-action: none;
+        }
+
+        #3d-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
+        #user-sim-container .interactive { pointer-events: auto; }
+
+        @keyframes pulse-glow {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 15px rgba(59, 130, 246, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+        #user-sim-container .pulse-anim { animation: pulse-glow 2s infinite; border-color: #2563eb !important; background-color: #eff6ff !important; }
+
+        #toast-msg {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            color: white; padding: 12px 25px; border-radius: 30px; font-weight: 800; font-size: 13px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.3); opacity: 0; 
+            transition: opacity 0.5s, transform 0.5s; pointer-events: none; z-index: 20;
+            display: flex; align-items: center; gap: 8px;
+        }
+        #toast-msg.show { opacity: 1; transform: translateX(-50%) translateY(10px); }
+        #user-sim-container .toast-success { background: linear-gradient(135deg, #22c55e, #16a34a); }
+        #user-sim-container .toast-error { background: linear-gradient(135deg, #ef4444, #dc2626); }
+
+        #empty-hint {
+            position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%);
+            text-align: center; color: rgba(255,255,255,0.8); pointer-events: none;
+            background: rgba(0,0,0,0.5); padding: 15px 25px; border-radius: 12px; backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        #inventory-wrapper { position: absolute; top: 15px; left: 15px; display: flex; gap: 8px; align-items: flex-start; }
+        #btn-toggle-inv {
+            width: 40px; height: 40px; border-radius: 10px; font-size: 20px;
+            background-color: var(--sim-panel-bg); border: 2px solid #3b82f6; cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2); display: flex; justify-content: center; align-items: center;
+            backdrop-filter: blur(4px); transition: transform 0.2s; color: var(--sim-text-main); padding: 0;
+        }
+        #btn-toggle-inv:hover { transform: scale(1.05); background-color: #fff; }
+        
+        #inv-items { 
+            display: flex; gap: 8px; background-color: var(--sim-panel-bg); padding: 8px; 
+            border-radius: 12px; border: 1px solid var(--sim-border-color); backdrop-filter: blur(4px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        #user-sim-container .btn-spawn {
+            width: 40px; height: 40px; border-radius: 50%; font-size: 20px;
+            background-color: var(--sim-panel-bg); border: 2px solid #cbd5e1; cursor: grab;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center;
+            transition: transform 0.2s, border-color 0.2s; color: var(--sim-text-main); padding: 0;
+            overflow: hidden;
+        }
+        #user-sim-container .btn-spawn:active { cursor: grabbing; transform: scale(0.9); }
+        #user-sim-container .btn-spawn:hover { transform: scale(1.1); border-color: #3b82f6; }
+        #user-sim-container .hidden { display: none !important; }
+
+        /* --- Panel Kanan Atas Minimalis --- */
+        #right-wrapper { position: absolute; top: 15px; right: 15px; display: flex; align-items: flex-start; gap: 6px; }
+        #user-sim-container .toggle-action-btn {
+            background-color: var(--sim-panel-bg); border: 1px solid var(--sim-border-color); color: var(--sim-text-main);
+            cursor: pointer; backdrop-filter: blur(4px); border-radius: 8px; width: 32px; height: 32px;
+            display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 14px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 0;
+        }
+        
+        /* Tombol Bantuan Baru */
+        #btn-info-sim {
+            position: absolute; top: 15px; right: 55px; 
+            width: 32px; height: 32px; border-radius: 8px;
+            background-color: var(--sim-panel-bg); border: 1px solid var(--sim-border-color);
+            display: flex; justify-content: center; align-items: center; cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); backdrop-filter: blur(4px);
+            font-size: 14px; color: var(--sim-text-main); transition: transform 0.2s;
+        }
+        #btn-info-sim:hover { transform: scale(1.05); }
+
+        #sim-instructions-panel {
+            position: absolute; top: 55px; right: 15px; width: 220px;
+            background-color: var(--sim-panel-bg); border: 1px solid var(--sim-border-color);
+            border-radius: 8px; padding: 12px; backdrop-filter: blur(4px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); font-size: 10px; line-height: 1.5;
+            color: var(--sim-text-main); z-index: 50;
+            display: none; transform-origin: top right;
+        }
+        #sim-instructions-panel.show { display: block; animation: scaleIn 0.2s ease-out; }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        #sim-instructions-panel ul { margin: 5px 0 0 0; padding-left: 15px; }
+        #sim-instructions-panel li { margin-bottom: 4px; }
+
+        #right-panels { display: flex; flex-direction: column; gap: 4px; width: 155px; } 
+        #user-sim-container .panel-box { background-color: var(--sim-panel-bg); border: 1px solid var(--sim-border-color); border-radius: 8px; padding: 8px; backdrop-filter: blur(4px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        
+        #user-sim-container .toggle-row { display: flex; justify-content: space-between; align-items: center; font-size: 10px; margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px solid #ccc; font-weight: 600; }
+        #user-sim-container .checkbox-item { display: flex; align-items: center; margin-bottom: 3px; font-size: 10px; cursor: pointer; font-weight: 600; }
+        #user-sim-container .checkbox-item input { margin-right: 4px; transform: scale(0.8); }
+        
+        #user-sim-container .slider-container { margin-bottom: 6px; }
+        #user-sim-container .mass-title { font-weight: 700; font-size: 10px; color: #334155; margin-bottom: 3px; display: flex; align-items: center; gap: 4px; }
+        #user-sim-container input[type=range] { width: 100%; cursor: pointer; height: 4px; } 
+
+        #speed-panel {
+            position: absolute; bottom: 15px; left: 15px; display: flex; flex-direction: column; gap: 2px;
+            font-size: 9px; font-weight: 600; background-color: var(--sim-panel-bg); padding: 5px 8px;
+            border-radius: 8px; border: 1px solid var(--sim-border-color); backdrop-filter: blur(4px);
+        }
+        #speed-panel label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+        #speed-panel input[type=radio] { margin: 0; transform: scale(0.8); }
+
+        #bottom-wrapper { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        #btn-toggle-bottom { border-radius: 8px 8px 4px 4px; padding: 2px 20px !important; font-size: 9px; height: 16px; width: auto;}
+        #bottom-center { display: flex; align-items: center; gap: 15px; background-color: var(--sim-panel-bg); padding: 6px 15px; border-radius: 10px; border: 1px solid var(--sim-border-color); box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+        #user-sim-container .playback-controls { display: flex; align-items: center; gap: 8px; }
+        #user-sim-container .btn-round { border: none; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; background-color: #cbd5e1; color: var(--sim-text-main); padding: 0;}
+        #user-sim-container .btn-step { width: 24px; height: 24px; font-size: 10px; }
+        #user-sim-container .btn-play { width: 36px; height: 36px; background-color: #60a5fa; border: 2px solid #3b82f6; color: white; font-size: 16px; }
+        #user-sim-container .btn-play:hover { background-color: #3b82f6; }
+        
+        #user-sim-container .time-panel { display: flex; flex-direction: column; align-items: center; width: 120px; font-variant-numeric: tabular-nums; }
+        #days-display { font-size: 12px; font-weight: 800; color: #1e3a8a; white-space: nowrap; width: 100%; text-align: center;}
+        #moon-display { font-size: 9px; font-weight: 700; color: #ea580c; margin-top: 2px; display: none; white-space: nowrap; width: 100%; text-align: center;}
+        #user-sim-container .btn-clear { margin-top: 4px; padding: 2px 6px; font-size: 9px; border: none; border-radius: 4px; cursor: pointer; background-color: #e2e8f0; font-weight: bold; color: var(--sim-text-main);}
+
+        #reset-panel { position: absolute; bottom: 15px; right: 15px; display: flex; gap: 8px; }
+        #user-sim-container .btn-action-corner { 
+            width: 34px; height: 34px; border-radius: 50%; cursor: pointer; 
+            display: flex; justify-content: center; align-items: center; font-size: 14px; color: white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2); transition: transform 0.1s; border: none; padding: 0;
+        }
+        #user-sim-container .btn-action-corner:hover { transform: scale(1.1); }
+        #btn-recenter { background-color: #3b82f6; border: 2px solid #2563eb; }
+        #btn-reset-all { background-color: #f59e0b; border: 2px solid #d97706; }
+
+        #info-modal {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background-color: #ffffff; width: 300px; border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 4px solid #3b82f6; padding: 15px; text-align: center; z-index: 100;
+        }
+        #modal-3d-canvas {
+            width: 140px; height: 140px; margin: 0 auto 10px auto;
+            border-radius: 50%; box-shadow: inset 0 0 20px rgba(0,0,0,0.1); background-color: #020617;
+        }
+        #modal-title { margin: 0 0 10px 0; color: #1e3a8a; font-size: 18px; }
+        #modal-desc { margin: 0 0 15px 0; color: #334155; font-size: 12px; line-height: 1.5; text-align: left; }
+        
+        #user-sim-container .modal-buttons { display: flex; flex-direction: column; gap: 6px; }
+        #btn-close-modal { background-color: #3b82f6; color: white; border: none; border-radius: 6px; padding: 8px; font-size: 12px; font-weight: bold; cursor: pointer; }
+        #btn-close-modal:hover { background-color: #2563eb; }
+        
+        #btn-return-inv { background-color: #f59e0b; color: white; border: none; border-radius: 6px; padding: 8px; font-size: 12px; font-weight: bold; cursor: pointer; }
+        #btn-return-inv:hover { background-color: #d97706; }
+
+    </style>
+</head>
+<body class="w-full min-h-screen relative">
+
+    <!-- Animated Background -->
+    <div id="stars-container"></div>
+
+    <!-- ================= PAGE 1: LOGIN ================= -->
+    <div id="page-login" class="w-full min-h-screen flex items-center justify-center py-12 px-4 transition-opacity duration-500">
+        <div class="glass-panel p-10 rounded-2xl w-full max-w-md text-center transform hover:scale-105 transition-transform duration-300">
+            <div class="mb-6">
+                <i class="fa-solid fa-atom text-5xl text-space-glow mb-4 float-anim"></i>
+                <h1 class="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-space-glow title-font tracking-wider">GRAVITASI DAN ORBIT</h1>
+                <p class="text-space-accent mt-2">Materi Tata Surya - Ilmuwan Muda</p>
+            </div>
+
+            <form id="login-form" class="space-y-5 text-left">
+                <div>
+                    <label class="block text-sm text-gray-300 mb-1">Nama Ilmuwan Muda</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-user-astronaut absolute left-3 top-3 text-gray-400"></i>
+                        <input type="text" id="student-name" required placeholder="Masukkan Namamu..." 
+                            class="w-full bg-space-800/50 border border-gray-600 rounded-lg py-2 pl-10 pr-4 text-white focus:outline-none focus:border-space-glow focus:ring-1 focus:ring-space-glow transition-all">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm text-gray-300 mb-1">Pilih Kelas</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-school absolute left-3 top-3 text-gray-400"></i>
+                        <select id="student-class" required 
+                            class="w-full bg-space-800/50 border border-gray-600 rounded-lg py-2 pl-10 pr-10 text-white appearance-none focus:outline-none focus:border-space-glow focus:ring-1 focus:ring-space-glow transition-all cursor-pointer">
+                            <option value="" disabled selected>Pilih kelasmu...</option>
+                            <option value="5A" class="bg-space-900">Kelas 5A</option>
+                            <option value="5B" class="bg-space-900">Kelas 5B</option>
+                            <option value="5C" class="bg-space-900">Kelas 5C</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down absolute right-4 top-3 text-gray-400 pointer-events-none"></i>
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full mt-6 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold py-3 rounded-lg shadow-[0_0_15px_rgba(0,240,255,0.4)] hover:shadow-[0_0_25px_rgba(0,240,255,0.6)] transition-all title-font tracking-widest">
+                    MULAI BELAJAR <i class="fa-solid fa-arrow-right ml-2"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= PAGE 2: PENGARAHAN (VIDEO MASALAH) ================= -->
+    <div id="page-briefing" class="w-full min-h-screen flex flex-col items-center justify-center p-4 md:p-6 hidden-page transition-opacity duration-500 py-10">
+        
+        <div class="w-full max-w-5xl glass-panel rounded-2xl overflow-hidden flex flex-col md:flex-row min-h-[80vh] transition-all duration-500">
+            <div class="w-full md:w-2/3 bg-black relative flex items-center justify-center border-b md:border-b-0 md:border-r border-gray-700 min-h-[300px]">
+                <div class="absolute top-4 left-4 bg-red-600 text-white text-xs px-2 py-1 rounded animate-pulse title-font z-10">
+                    <i class="fa-solid fa-satellite-dish mr-1"></i> PENGARAHAN MASALAH
+                </div>
+                <!-- Mengatur video menjadi gravitasi.mp4 -->
+                <video id="vid" width="100%" height="100%" controls class="absolute inset-0 w-full h-full object-cover opacity-80">
+                    <source src="gravitasi.mp4" type="video/mp4">
+                    Browser Anda tidak mendukung pemutaran video.
+                </video>
+            </div>
+
+            <div class="w-full md:w-1/3 p-6 flex flex-col justify-between bg-gradient-to-b from-space-800/80 to-space-900/80">
+                <div>
+                    <h2 class="text-xl md:text-2xl font-bold text-space-glow title-font mb-4 border-b border-gray-600 pb-2">GRAVITASI DAN ORBIT</h2>
+                    <p class="text-gray-300 text-sm leading-relaxed mb-4">
+                        Halo, <span id="display-name" class="font-bold text-white"></span> dari kelas <span id="display-class" class="font-bold text-white"></span>!
+                    </p>
+                    <p class="text-gray-300 text-sm leading-relaxed mb-4">
+                        Lihat video di samping! Terjadi bencana kosmik: Bumi kehilangan kendali dan jatuh menabrak Matahari, sementara Bulan terhempas ke luar angkasa.
+                    </p>
+                    <div class="bg-blue-900/40 border border-blue-500/50 rounded-lg p-3 mt-4">
+                        <h3 class="text-blue-300 font-bold text-sm mb-1"><i class="fa-solid fa-circle-exclamation mr-1"></i> MASALAH UTAMA</h3>
+                        <p class="text-xs text-blue-100">
+                            Kekacauan ini diakibatkan oleh <strong>hilangnya gaya gravitasi</strong>! Ayo masuk ke Laboratorium, pecahkan misterinya, dan kembalikan keseimbangan tata surya kita!
+                        </p>
+                    </div>
+                </div>
+
+                <!-- GRUP TOMBOL BAWAH -->
+                <div class="mt-6">
+                    <button onclick="goToLab()" class="w-full bg-space-glow text-black hover:bg-white font-bold py-3 rounded-lg transition-all title-font text-sm flex justify-center items-center gap-2 shadow-[0_0_15px_rgba(0,240,255,0.4)]">
+                        MASUK LABORATORIUM <i class="fa-solid fa-flask"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= PAGE 3: LABORATORIUM ================= -->
+    <div id="page-lab" class="w-full min-h-screen flex flex-col items-center p-4 md:p-6 py-6 hidden-page transition-opacity duration-500 relative">
+        <h2 class="text-2xl md:text-3xl font-bold text-space-glow title-font text-center mb-6">LABORATORIUM GRAVITASI DAN ORBIT</h2>
+
+        <div class="w-full max-w-6xl mx-auto relative rounded-2xl overflow-hidden border-2 border-gray-700 shadow-[0_0_20px_rgba(0,240,255,0.2)] mb-6" style="aspect-ratio: 16/9; min-height: 400px; max-height: 70vh;">
+            <div id="user-sim-container">
+                <div id="3d-container"></div>
+                <div id="ui-layer">
+                    <div id="toast-msg"></div>
+                    <div id="empty-hint">
+                        <h2 style="margin:0; font-size: 22px;">Tata Surya 3D</h2>
+                        <p style="margin-top:8px; font-size: 13px;">Buka kotak di kiri atas (📦) untuk meletakkan planet.</p>
+                    </div>
+                    
+                    <!-- Panel Info Singkat -->
+                    <button id="btn-info-sim" class="interactive" title="Instruksi Penggunaan"><i class="fa-solid fa-question"></i></button>
+                    <div id="sim-instructions-panel" class="interactive">
+                        <div style="font-weight: bold; margin-bottom: 8px; font-size: 11px; border-bottom: 1px solid #ccc; padding-bottom: 4px;"><i class="fa-solid fa-book-open"></i> Cara Bermain:</div>
+                        <ul style="list-style-type: square;">
+                            <li>Buka 📦 dan <b>seret/drag</b> planet ke angkasa.</li>
+                            <li>Buka ⚙️ lalu aktifkan <b>Gravitasi</b> agar saling berinteraksi.</li>
+                            <li>Tekan <b>Play ▶️</b> di bawah untuk memulai waktu.</li>
+                            <li>Klik <b>⌖</b> untuk memusatkan kamera kembali ke Matahari.</li>
+                            <li>Klik pada planet untuk melihat info spesifiknya.</li>
+                        </ul>
+                    </div>
+
+                    <div id="inventory-wrapper" class="interactive">
+                        <button id="btn-toggle-inv" class="pulse-anim" title="Buka/Tutup Inventaris">📦</button>
+                        <div id="inv-items" class="hidden">
+                            <button class="btn-spawn" id="btn-spawn-sun" data-type="sun">☀️</button>
+                            <button class="btn-spawn" id="btn-spawn-earth" data-type="earth">🌍</button>
+                            <button class="btn-spawn" id="btn-spawn-moon" data-type="moon">🌑</button>
+                        </div>
+                    </div>
+                    <div id="right-wrapper" class="interactive">
+                        <button id="btn-toggle-right" class="toggle-action-btn">⚙️</button>
+                        <div id="right-panels" class="hidden">
+                            <div class="panel-box">
+                                <div class="toggle-row">
+                                    <span>Gravitasi:</span>
+                                    <div style="display:flex; gap:4px;"><label><input type="radio" name="gravity" id="grav-on"> On</label><label><input type="radio" name="gravity" id="grav-off"> Off</label></div>
+                                </div>
+                                <label class="checkbox-item"><input type="checkbox" id="cb-force"> Panah Tarikan</label>
+                                <label class="checkbox-item"><input type="checkbox" id="cb-path"> Garis Orbit</label>
+                            </div>
+                            <div class="panel-box">
+                                <div class="slider-container"><div class="mass-title">☀️ Ukuran Matahari</div><input type="range" id="slider-sun" min="0.5" max="2" step="0.1" value="0.5"></div>
+                                <div class="slider-container"><div class="mass-title">🌍 Ukuran Bumi</div><input type="range" id="slider-earth" min="0.5" max="2" step="0.1" value="0.5"></div>
+                                <div class="slider-container"><div class="mass-title">🌑 Ukuran Bulan</div><input type="range" id="slider-moon" min="0.5" max="2" step="0.1" value="0.5"></div>
+                                <div class="slider-container" style="border-top:1px dashed #ccc; padding-top:5px;"><div class="mass-title">🔍 Zoom</div><input type="range" id="slider-zoom" min="0.3" max="2" step="0.1" value="0.3"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="speed-panel" class="interactive">
+                        <div style="text-align:center; color:#1e40af;">Waktu</div>
+                        <label><input type="radio" name="speed" value="2"> Cepat</label><label><input type="radio" name="speed" value="1" checked> Normal</label><label><input type="radio" name="speed" value="0.2"> Lambat</label>
+                    </div>
+                    <div id="bottom-wrapper" class="interactive">
+                        <button id="btn-toggle-bottom" class="toggle-action-btn">▼</button>
+                        <div id="bottom-center">
+                            <div class="playback-controls"><button class="btn-round btn-step" id="btn-step-back">⏪</button><button class="btn-round btn-play" id="btn-play"><span id="icon-play">▶️</span><span id="icon-pause" style="display:none;">⏸️</span></button><button class="btn-round btn-step" id="btn-step-fwd">⏩</button></div>
+                            <div class="time-panel"><span id="days-display">0 Hari 0 Jam</span><span id="moon-display">Bulan: 0 Putaran</span><button class="btn-clear" id="btn-clear-days">Ulang</button></div>
+                        </div>
+                    </div>
+                    <div id="reset-panel" class="interactive">
+                        <button class="btn-action-corner" id="btn-recenter" title="Fokuskan Layar">⌖</button><button class="btn-action-corner" id="btn-reset-all" title="Reset Semua">🔄</button>
+                    </div>
+                    <div id="info-modal" class="interactive hidden">
+                        <div id="modal-3d-canvas"></div><h3 id="modal-title"></h3><div id="modal-desc"></div>
+                        <div class="modal-buttons"><button id="btn-return-inv">📥 Kembalikan</button><button id="btn-close-modal">Tutup</button></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRUP TOMBOL BAWAH SEJAJAR -->
+        <div class="w-full max-w-6xl mx-auto flex justify-center gap-4">
+            <button onclick="showPage('page-briefing')" class="bg-transparent border border-gray-500 text-gray-300 hover:text-white hover:border-white px-8 py-4 rounded-xl font-bold transition-all title-font flex items-center gap-3 text-sm md:text-base">
+                <i class="fa-solid fa-arrow-left"></i> KEMBALI
+            </button>
+            <button onclick="goToQuiz()" class="bg-green-600 hover:bg-green-500 text-white px-8 py-4 rounded-xl font-bold shadow-[0_0_15px_rgba(34,197,94,0.4)] hover:shadow-[0_0_25px_rgba(34,197,94,0.6)] transition-all flex items-center gap-3 title-font flex-1 justify-center max-w-md text-sm md:text-base">
+                LANJUT KE EVALUASI <i class="fa-solid fa-clipboard-check"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- ================= PAGE 4: MISI EVALUASI (Kuis Akhir Menggulir / Scrolling) ================= -->
+    <div id="page-quiz" class="w-full min-h-screen flex flex-col items-center p-4 md:p-6 py-10 hidden-page transition-opacity duration-500 relative">
+        
+        <div class="w-full max-w-4xl text-center mb-10">
+            <h2 class="text-3xl font-bold text-space-glow title-font">EVALUASI MISI</h2>
+            <p class="text-gray-400 mt-2">Jawab semua pertanyaan di bawah ini dengan benar!</p>
+        </div>
+
+        <div id="quiz-questions-wrapper" class="w-full max-w-4xl glass-panel rounded-2xl flex flex-col p-6 md:p-12 mb-10">
+            
+            <!-- Q1: Gravitasi Terbesar -->
+            <!-- PERHATIKAN SPASI SUPER LEBAR (mb-24) UNTUK SETIAP SOAL -->
+            <div id="q1" class="quiz-step flex flex-col justify-center mb-24 pb-12 border-b-2 border-gray-700 border-dashed" data-answered="false">
+                <div class="text-center mb-6">
+                    <span class="inline-block bg-blue-900/60 border border-blue-500/50 text-space-glow px-5 py-2 rounded-full text-xs md:text-sm font-bold title-font tracking-widest shadow-[0_0_10px_rgba(0,240,255,0.3)]">SOAL 1</span>
+                </div>
+                <p class="text-base md:text-lg text-center mb-10 leading-relaxed font-space text-gray-100 max-w-2xl mx-auto">
+                    Klik benda langit yang memiliki <span class="text-yellow-400 font-semibold">Gaya Gravitasi paling kuat</span>!
+                </p>
+                <div class="flex flex-row justify-center items-end gap-4 md:gap-12 mt-4">
+                    <div class="quiz-card w-24 h-36 md:w-32 md:h-44 rounded-xl flex flex-col items-center justify-end p-2 md:p-4 text-center shrink-0" onclick="selectAnswer(this, false, 'q1')">
+                        <div class="w-16 h-16 md:w-20 md:h-20 rounded-full mb-4 shadow-[0_0_20px_rgba(59,130,246,0.6)] bg-blue-500 relative overflow-hidden">
+                            <!-- Fallback color jika gambar gagal load -->
+                            <img src="https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=300&q=80" alt="Bumi" class="absolute inset-0 w-full h-full object-cover rounded-full z-10" onerror="this.style.opacity='0'">
+                        </div>
+                        <p class="font-bold title-font text-[10px] md:text-sm">BUMI</p>
+                    </div>
+                    <div class="quiz-card w-28 h-40 md:w-40 md:h-52 rounded-xl flex flex-col items-center justify-end p-2 md:p-4 text-center shrink-0" onclick="selectAnswer(this, true, 'q1')">
+                        <div class="w-20 h-20 md:w-28 md:h-28 rounded-full mb-4 shadow-[0_0_30px_rgba(234,179,8,0.8)] bg-yellow-500 relative overflow-hidden">
+                            <img src="https://images.unsplash.com/photo-1532680164474-98402a11b6fa?w=300&q=80" alt="Matahari" class="absolute inset-0 w-full h-full object-cover rounded-full z-10" onerror="this.style.opacity='0'">
+                        </div>
+                        <p class="font-bold title-font text-xs md:text-lg text-yellow-300">MATAHARI</p>
+                    </div>
+                    <div class="quiz-card w-20 h-32 md:w-28 md:h-40 rounded-xl flex flex-col items-center justify-end p-2 md:p-4 text-center shrink-0" onclick="selectAnswer(this, false, 'q1')">
+                        <div class="w-12 h-12 md:w-16 md:h-16 rounded-full mb-4 shadow-[0_0_15px_rgba(148,163,184,0.6)] bg-gray-400 relative overflow-hidden">
+                            <img src="https://images.unsplash.com/photo-1522030299830-16b8d3d049fe?w=300&q=80" alt="Bulan" class="absolute inset-0 w-full h-full object-cover rounded-full z-10" onerror="this.style.opacity='0'">
+                        </div>
+                        <p class="font-bold title-font text-[9px] md:text-xs">BULAN</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Q2: Arah Panah Hilang Gravitasi -->
+            <div id="q2" class="quiz-step flex flex-col justify-center mb-24 pb-12 border-b-2 border-gray-700 border-dashed" data-answered="false">
+                <div class="text-center mb-6">
+                    <span class="inline-block bg-blue-900/60 border border-blue-500/50 text-space-glow px-5 py-2 rounded-full text-xs md:text-sm font-bold title-font tracking-widest shadow-[0_0_10px_rgba(0,240,255,0.3)]">SOAL 2</span>
+                </div>
+                <p class="text-base md:text-lg text-center mb-6 leading-relaxed font-space text-gray-100 max-w-2xl mx-auto">
+                    Jika gaya gravitasi Matahari <span class="text-red-400 font-semibold">tiba-tiba menghilang</span>, ke arah manakah Bumi melayang?<br>
+                    <span class="text-sm text-gray-400 mt-2 block">Geser kemudi untuk mengarahkan panah, lalu klik KUNCI!</span>
+                </p>
+                <div class="relative w-full max-w-sm mx-auto h-48 md:h-56 border-2 border-gray-700 bg-black/50 rounded-xl overflow-hidden flex items-center justify-center scale-90 md:scale-100 mt-2">
+                    <div class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark text-3xl md:text-4xl text-red-500 opacity-80"></i></div>
+                    <div class="absolute w-36 h-36 md:w-48 md:h-48 orbit-dashed left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2"></div>
+                    
+                    <div class="absolute top-6 md:top-4 left-1/2 transform -translate-x-1/2 w-10 h-10 md:w-12 md:h-12 z-10 flex items-center justify-center">
+                        <div class="w-full h-full rounded-full bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.6)] relative overflow-hidden">
+                            <img src="https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=200&q=80" class="absolute inset-0 w-full h-full object-cover z-10" onerror="this.style.opacity='0'">
+                        </div>
+                        <div id="q2-arrow-container" class="absolute w-[100px] h-4 flex items-center justify-end origin-left transition-transform duration-75" style="left: 50%; transform: rotate(270deg);">
+                            <i class="fa-solid fa-arrow-right text-3xl text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-8 flex flex-col items-center gap-4 max-w-sm mx-auto w-full">
+                    <input type="range" id="q2-slider" min="0" max="360" value="270" class="w-full cursor-pointer accent-space-glow h-2 bg-gray-700 rounded-lg appearance-none" oninput="document.getElementById('q2-arrow-container').style.transform = `rotate(${this.value}deg)`">
+                    <button id="btn-check-q2" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-lg font-bold transition-colors title-font tracking-wider mt-2" onclick="checkQ2Answer(this)">KUNCI ARAH PANAH</button>
+                </div>
+            </div>
+
+            <!-- Q3: Pasang Surut -->
+            <div id="q3" class="quiz-step flex flex-col justify-center mb-24 pb-12 border-b-2 border-gray-700 border-dashed" data-answered="false">
+                <div class="text-center mb-6">
+                    <span class="inline-block bg-blue-900/60 border border-blue-500/50 text-space-glow px-5 py-2 rounded-full text-xs md:text-sm font-bold title-font tracking-widest shadow-[0_0_10px_rgba(0,240,255,0.3)]">SOAL 3</span>
+                </div>
+                <p class="text-base md:text-lg text-center mb-10 leading-relaxed font-space text-gray-100 max-w-2xl mx-auto">
+                    Air laut di Bumi bisa mengalami pasang surut. Klik objek langit yang tarikan gravitasinya <span class="text-blue-400 font-semibold">paling mempengaruhi</span> fenomena ini!
+                </p>
+                <div class="flex flex-row justify-center items-center gap-4 md:gap-12 mt-4">
+                    <div class="quiz-card w-20 h-32 md:w-32 md:h-44 rounded-xl flex flex-col items-center justify-end p-2 text-center" onclick="selectAnswer(this, false, 'q3')">
+                        <i class="fa-solid fa-meteor text-4xl md:text-5xl text-orange-400 mb-6 drop-shadow-[0_0_10px_rgba(251,146,60,0.6)]"></i>
+                        <p class="font-bold text-[9px] md:text-sm">METEOR</p>
+                    </div>
+                    <div class="w-28 h-28 md:w-40 md:h-40 mx-2 relative flex items-center justify-center shrink-0">
+                        <div id="q3-water" class="absolute w-16 h-16 md:w-20 md:h-20 bg-blue-500/40 tide-water"></div>
+                        <div class="absolute w-14 h-14 md:w-16 md:h-16 rounded-full z-10 flex items-center justify-center overflow-hidden shadow-[0_0_15px_rgba(59,130,246,0.5)] bg-blue-500">
+                            <img src="https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=200&q=80" class="w-full h-full object-cover" onerror="this.style.opacity='0'">
+                        </div>
+                    </div>
+                    <div class="quiz-card w-20 h-32 md:w-32 md:h-44 rounded-xl flex flex-col items-center justify-end p-2 text-center" onclick="selectAnswer(this, true, 'q3'); document.getElementById('q3-water').style.transform = 'scaleX(1.5)';">
+                        <div class="w-12 h-12 md:w-16 md:h-16 rounded-full mb-6 shadow-[0_0_15px_rgba(255,255,255,0.4)] bg-gray-400 relative overflow-hidden">
+                            <img src="https://images.unsplash.com/photo-1522030299830-16b8d3d049fe?w=200&q=80" class="absolute inset-0 w-full h-full object-cover rounded-full z-10" onerror="this.style.opacity='0'">
+                        </div>
+                        <p class="font-bold text-[9px] md:text-sm text-gray-200">BULAN</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Q4: Keseimbangan Syarat Orbit -->
+            <div id="q4" class="quiz-step flex flex-col justify-center mb-24 pb-12 border-b-2 border-gray-700 border-dashed" data-answered="false">
+                <div class="text-center mb-6">
+                    <span class="inline-block bg-blue-900/60 border border-blue-500/50 text-space-glow px-5 py-2 rounded-full text-xs md:text-sm font-bold title-font tracking-widest shadow-[0_0_10px_rgba(0,240,255,0.3)]">SOAL 4</span>
+                </div>
+                <p class="text-base md:text-lg text-center mb-8 leading-relaxed font-space text-gray-100 max-w-2xl mx-auto">
+                    Agar planet mengorbit dengan stabil, pilih <span class="text-yellow-400 font-semibold">2 elemen penting</span> pada panel berikut!
+                </p>
+                
+                <div class="grid grid-cols-3 gap-3 md:gap-6 mt-2" id="q4-options">
+                    <div id="sel-grav" class="quiz-card q4-item h-28 md:h-36 rounded-xl flex flex-col items-center justify-center p-2 text-center border-2 border-transparent transition-all cursor-pointer" onclick="toggleQ4Selection(this)" data-val="correct">
+                        <i class="fa-solid fa-weight-hanging text-3xl md:text-4xl mb-3 text-yellow-400 pointer-events-none"></i>
+                        <p class="text-[10px] md:text-sm font-bold pointer-events-none text-gray-200">Gravitasi</p>
+                    </div>
+                    <div id="sel-temp" class="quiz-card q4-item h-28 md:h-36 rounded-xl flex flex-col items-center justify-center p-2 text-center border-2 border-transparent transition-all cursor-pointer" onclick="toggleQ4Selection(this)" data-val="wrong">
+                        <i class="fa-solid fa-temperature-high text-3xl md:text-4xl mb-3 text-red-400 pointer-events-none"></i>
+                        <p class="text-[10px] md:text-sm font-bold pointer-events-none text-gray-200">Suhu Panas</p>
+                    </div>
+                    <div id="sel-speed" class="quiz-card q4-item h-28 md:h-36 rounded-xl flex flex-col items-center justify-center p-2 text-center border-2 border-transparent transition-all cursor-pointer" onclick="toggleQ4Selection(this)" data-val="correct">
+                        <i class="fa-solid fa-rocket text-3xl md:text-4xl mb-3 text-blue-400 pointer-events-none"></i>
+                        <p class="text-[10px] md:text-sm font-bold pointer-events-none text-gray-200">Kecepatan</p>
+                    </div>
+                </div>
+
+                <div class="mt-10 w-full max-w-md mx-auto text-center">
+                    <p class="text-sm font-bold text-space-glow mb-3 title-font">Terpilih: <span id="q4-count" class="text-white">0</span> / 2</p>
+                    <button id="btn-check-q4" class="w-full bg-gray-600 text-white py-3 rounded-lg font-bold transition-colors opacity-50 cursor-not-allowed title-font tracking-wider" onclick="checkQ4Answer(this)" disabled>CEK KESEIMBANGAN</button>
+                </div>
+            </div>
+
+            <!-- Q5: Hasil Tabrakan -->
+            <div id="q5" class="quiz-step flex flex-col justify-center mb-10" data-answered="false">
+                <div class="text-center mb-6">
+                    <span class="inline-block bg-blue-900/60 border border-blue-500/50 text-space-glow px-5 py-2 rounded-full text-xs md:text-sm font-bold title-font tracking-widest shadow-[0_0_10px_rgba(0,240,255,0.3)]">SOAL 5</span>
+                </div>
+                <p class="text-base md:text-lg text-center mb-8 leading-relaxed font-space text-gray-100 max-w-2xl mx-auto">
+                    Pilih Animasi yang Benar!<br><span class="text-sm text-gray-400 mt-2 block">Apa yang terjadi jika kecepatan Bumi <strong class="text-red-400 font-semibold">terlalu lambat</strong>?</span>
+                </p>
+                <div class="grid grid-cols-2 gap-4 md:gap-8 mt-2">
+                    <div class="quiz-card w-full p-3 md:p-6 rounded-xl flex flex-col items-center justify-center text-center" onclick="selectAnswer(this, true, 'q5')">
+                        <div class="w-full h-24 md:h-36 bg-black/50 border border-gray-600 rounded mb-4 flex items-center justify-center overflow-hidden relative">
+                            <!-- Matahari Q5 -->
+                            <div class="w-16 h-16 md:w-24 md:h-24 rounded-full shadow-[0_0_20px_rgba(234,179,8,0.6)] absolute left-2 md:left-4 bg-yellow-500 overflow-hidden">
+                                <img src="https://images.unsplash.com/photo-1532680164474-98402a11b6fa?w=200&q=80" class="absolute inset-0 w-full h-full object-cover z-10" onerror="this.style.opacity='0'">
+                            </div>
+                            <!-- Bumi Q5 (Animasi Jatuh) -->
+                            <div class="w-8 h-8 md:w-10 md:h-10 rounded-full absolute bg-blue-500 overflow-hidden shadow-[0_0_10px_rgba(59,130,246,0.6)]" style="animation: fallIn 2s infinite">
+                                <img src="https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=100&q=80" class="absolute inset-0 w-full h-full object-cover z-10" onerror="this.style.opacity='0'">
+                            </div>
+                        </div>
+                        <p class="font-bold text-xs md:text-base">Jatuh Menabrak Matahari</p>
+                    </div>
+                    
+                    <div class="quiz-card w-full p-3 md:p-6 rounded-xl flex flex-col items-center justify-center text-center" onclick="selectAnswer(this, false, 'q5')">
+                        <div class="w-full h-24 md:h-36 bg-black/50 border border-gray-600 rounded mb-4 flex items-center justify-center overflow-hidden relative">
+                            <!-- Matahari Q5 -->
+                            <div class="w-16 h-16 md:w-24 md:h-24 rounded-full shadow-[0_0_20px_rgba(234,179,8,0.6)] absolute left-2 md:left-4 bg-yellow-500 overflow-hidden">
+                                <img src="https://images.unsplash.com/photo-1532680164474-98402a11b6fa?w=200&q=80" class="absolute inset-0 w-full h-full object-cover z-10" onerror="this.style.opacity='0'">
+                            </div>
+                            <!-- Bumi Q5 (Animasi Terlempar) -->
+                            <div class="w-8 h-8 md:w-10 md:h-10 rounded-full absolute bg-blue-500 overflow-hidden shadow-[0_0_10px_rgba(59,130,246,0.6)]" style="animation: flyAway 2s infinite">
+                                <img src="https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=100&q=80" class="absolute inset-0 w-full h-full object-cover z-10" onerror="this.style.opacity='0'">
+                            </div>
+                        </div>
+                        <p class="font-bold text-xs md:text-base">Terlempar Keluar Angkasa</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tombol Submit Kuis Di Bawah Scroll -->
+            <div class="mt-12 w-full flex justify-center border-t-2 border-gray-700 pt-8">
+                <button onclick="calculateFinalScore()" class="w-full max-w-sm bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-500 hover:to-emerald-400 text-white py-4 rounded-xl font-bold shadow-[0_0_20px_rgba(34,197,94,0.4)] transition-all title-font tracking-widest text-lg">
+                    SELESAIKAN EVALUASI <i class="fa-solid fa-check-double ml-2"></i>
+                </button>
+            </div>
+            
+        </div>
+
+        <!-- Quiz Result Screen (Disembunyikan pada awalnya) -->
+        <div id="quiz-result-screen" class="hidden flex-col items-center justify-center text-center mt-10 glass-panel p-10 rounded-2xl w-full max-w-2xl">
+            <i class="fa-solid fa-medal text-7xl text-yellow-400 mb-6 drop-shadow-[0_0_15px_rgba(250,204,21,0.8)]"></i>
+            <h2 class="text-3xl font-bold title-font mb-2">EVALUASI SELESAI</h2>
+            <div class="text-6xl font-black text-space-glow mb-8 title-font"><span id="final-score">0</span><span class="text-3xl text-gray-500">/5</span></div>
+            
+            <div class="flex flex-col md:flex-row gap-4 justify-center w-full mt-4">
+                <button onclick="resetQuizState();" class="bg-transparent border border-gray-500 text-gray-300 hover:text-white hover:border-white font-bold px-8 py-4 rounded-xl transition-all title-font flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-rotate-left"></i> ULANG KUIS
+                </button>
+                <button onclick="showPage('page-login')" class="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white px-8 py-4 rounded-xl font-bold shadow-[0_0_20px_rgba(0,240,255,0.4)] transition-all title-font flex items-center justify-center gap-3">
+                    KEMBALI KE BERANDA <i class="fa-solid fa-home"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- TOMBOL KEMBALI DI BAWAH KUIS -->
+        <div id="btn-back-to-lab" class="w-full max-w-4xl mt-6 flex justify-center">
+            <button onclick="goToLab()" class="bg-transparent border border-gray-500 text-gray-300 hover:text-white hover:border-white px-8 py-3 rounded-xl font-bold transition-all title-font flex items-center gap-3 text-sm md:text-base">
+                <i class="fa-solid fa-arrow-left"></i> KEMBALI KE LABORATORIUM
+            </button>
+        </div>
+    </div>
+
+    <!-- ================= SCRIPTS ================= -->
+    <script>
+        // --- 1. Background Animation ---
+        function createStars() {
+            const container = document.getElementById('stars-container');
+            for(let i=0; i<150; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = `${Math.random() * 100}vw`;
+                star.style.top = `${Math.random() * 100}vh`;
+                const size = Math.random() * 3;
+                star.style.width = `${size}px`; star.style.height = `${size}px`;
+                star.style.animationDelay = `${Math.random() * 5}s`;
+                container.appendChild(star);
+            }
+        }
+        createStars();
+
+        // --- 2. State & Nav ---
+        let studentData = { name: '', class: '' };
+        function showPage(pageId) {
+            ['page-login', 'page-briefing', 'page-lab', 'page-quiz'].forEach(id => document.getElementById(id)?.classList.add('hidden-page'));
+            document.getElementById(pageId)?.classList.remove('hidden-page');
+            window.scrollTo(0, 0);
+        }
+
+        document.getElementById('login-form')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            studentData.name = document.getElementById('student-name').value;
+            studentData.class = document.getElementById('student-class').value;
+            document.getElementById('display-name').innerText = studentData.name;
+            document.getElementById('display-class').innerText = studentData.class;
+            showPage('page-briefing');
+        });
+
+        function goToLab() { showPage('page-lab'); setTimeout(resize3D, 100); }
+        
+        function goToQuiz() { 
+            showPage('page-quiz'); 
+            resetQuizState(); 
+        }
+
+        // --- 3. Quiz Logic (Mode Menggulir) ---
+        let q4SelectedCount = 0;
+
+        function resetQuizState() {
+            // Tampilkan wrapper soal, sembunyikan hasil
+            document.getElementById('quiz-questions-wrapper').classList.remove('hidden');
+            document.getElementById('quiz-questions-wrapper').classList.add('flex');
+            document.getElementById('quiz-result-screen').classList.add('hidden');
+            document.getElementById('quiz-result-screen').classList.remove('flex');
+            document.getElementById('btn-back-to-lab').classList.remove('hidden');
+
+            // Reset Card Biasa (Soal 1, 3, 5)
+            document.querySelectorAll('.quiz-step').forEach(step => step.setAttribute('data-answered', 'false'));
+            document.querySelectorAll('.quiz-card').forEach(card => {
+                card.classList.remove('ring-4', 'ring-green-500', 'ring-red-500', 'opacity-50', 'ring-space-glow', 'bg-white/10');
+                const icon = card.querySelector('.feedback-icon'); if(icon) icon.remove();
+            });
+            document.getElementById('q3-water').style.transform = 'scaleX(1)';
+
+            // Reset Q2 Interaktif
+            let q2Slider = document.getElementById('q2-slider');
+            if(q2Slider) {
+                q2Slider.value = 270;
+                q2Slider.disabled = false;
+                document.getElementById('q2-arrow-container').style.transform = `rotate(270deg)`;
+                document.getElementById('q2-arrow-container').innerHTML = `<i class="fa-solid fa-arrow-right text-3xl text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]"></i>`;
+                let btnQ2 = document.getElementById('btn-check-q2');
+                btnQ2.disabled = false;
+                btnQ2.className = "w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-lg font-bold transition-colors title-font tracking-wider mt-2";
+                btnQ2.innerText = "KUNCI ARAH PANAH";
+            }
+
+            // Reset Q4 Interaktif
+            q4SelectedCount = 0;
+            let q4CountEl = document.getElementById('q4-count');
+            if(q4CountEl) q4CountEl.innerText = "0";
+            document.querySelectorAll('.q4-item').forEach(item => {
+                item.onclick = function() { toggleQ4Selection(this); };
+            });
+            let btnQ4 = document.getElementById('btn-check-q4');
+            if(btnQ4) {
+                btnQ4.disabled = true;
+                btnQ4.className = "w-full bg-gray-600 text-white py-3 rounded-lg font-bold transition-colors opacity-50 cursor-not-allowed title-font tracking-wider";
+                btnQ4.innerText = "CEK KESEIMBANGAN";
+            }
+            
+            // Gulir ke paling atas saat reset
+            window.scrollTo(0, 0);
+        }
+
+        // Fungsi pemilihan khusus untuk layar menggulir
+        function selectAnswer(btn, isCorrect, questionId) {
+            const step = document.getElementById(questionId);
+            
+            // Bersihkan seleksi sebelumnya di dalam soal ini
+            step.querySelectorAll('.quiz-card').forEach(c => {
+                c.classList.remove('ring-4', 'ring-green-500', 'ring-red-500', 'opacity-50');
+                const icon = c.querySelector('.feedback-icon'); if(icon) icon.remove();
+            });
+            
+            // Tandai yang dipilih
+            btn.classList.add('ring-4');
+            if (isCorrect) { 
+                btn.classList.add('ring-green-500'); 
+                btn.innerHTML += '<div class="feedback-icon absolute -top-3 -right-3 bg-green-500 w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-white font-bold shadow-lg text-lg"><i class="fa-solid fa-check"></i></div>';
+                step.setAttribute('data-answered', 'true'); // Benar
+            } else { 
+                btn.classList.add('ring-red-500'); 
+                btn.innerHTML += '<div class="feedback-icon absolute -top-3 -right-3 bg-red-500 w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-white font-bold shadow-lg text-lg"><i class="fa-solid fa-xmark"></i></div>';
+                step.setAttribute('data-answered', 'false'); // Salah
+            }
+        }
+
+        // --- Logika Soal 2 ---
+        function checkQ2Answer(btn) {
+            let val = parseInt(document.getElementById('q2-slider').value);
+            // Tangen arah kanan adalah 0 derajat atau 360 derajat (toleransi sudut kemiringan)
+            let isCorrect = (val >= 340 || val <= 20); 
+            
+            btn.disabled = true;
+            document.getElementById('q2-slider').disabled = true;
+
+            const step = document.getElementById('q2');
+            if (isCorrect) {
+                btn.classList.replace('bg-blue-600', 'bg-green-600');
+                btn.classList.replace('hover:bg-blue-500', 'hover:bg-green-500');
+                btn.innerHTML = 'ARAH BENAR! <i class="fa-solid fa-check ml-2"></i>';
+                step.setAttribute('data-answered', 'true');
+            } else {
+                btn.classList.replace('bg-blue-600', 'bg-red-600');
+                btn.classList.replace('hover:bg-blue-500', 'hover:bg-red-500');
+                btn.innerHTML = 'ARAH SALAH! <i class="fa-solid fa-xmark ml-2"></i>';
+                step.setAttribute('data-answered', 'false');
+                
+                // Menunjukkan arah benar
+                document.getElementById('q2-arrow-container').style.transform = `rotate(0deg)`;
+                document.getElementById('q2-arrow-container').innerHTML = `<i class="fa-solid fa-arrow-right text-3xl text-green-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]"></i>`;
+            }
+        }
+
+        // --- Logika Soal 4 ---
+        function toggleQ4Selection(el) {
+            if(el.classList.contains('ring-4')) {
+                el.classList.remove('ring-4', 'ring-space-glow', 'bg-white/10');
+                q4SelectedCount--;
+            } else {
+                if(q4SelectedCount >= 2) return; // Maksimal 2 yang bisa dipilih
+                el.classList.add('ring-4', 'ring-space-glow', 'bg-white/10');
+                q4SelectedCount++;
+            }
+            
+            document.getElementById('q4-count').innerText = q4SelectedCount;
+            let btn = document.getElementById('btn-check-q4');
+            if(q4SelectedCount === 2) {
+                btn.disabled = false;
+                btn.classList.remove('bg-gray-600', 'opacity-50', 'cursor-not-allowed');
+                btn.classList.add('bg-blue-600', 'hover:bg-blue-500');
+            } else {
+                btn.disabled = true;
+                btn.classList.add('bg-gray-600', 'opacity-50', 'cursor-not-allowed');
+                btn.classList.remove('bg-blue-600', 'hover:bg-blue-500');
+            }
+        }
+
+        function checkQ4Answer(btn) {
+            btn.disabled = true;
+            let selected = document.querySelectorAll('.q4-item.ring-4');
+            let isCorrect = true;
+            
+            selected.forEach(item => {
+                item.onclick = null; // Matikan seleksi lagi
+                if(item.getAttribute('data-val') !== 'correct') isCorrect = false;
+            });
+
+            document.querySelectorAll('.q4-item:not(.ring-4)').forEach(item => {
+                item.onclick = null;
+                item.classList.add('opacity-50'); // Buat yg tidak terpilih buram
+            });
+
+            const step = document.getElementById('q4');
+            if (isCorrect) {
+                btn.classList.replace('bg-blue-600', 'bg-green-600');
+                btn.classList.replace('hover:bg-blue-500', 'hover:bg-green-500');
+                btn.innerHTML = 'KESEIMBANGAN STABIL! <i class="fa-solid fa-check ml-2"></i>';
+                selected.forEach(item => item.classList.replace('ring-space-glow', 'ring-green-500'));
+                step.setAttribute('data-answered', 'true');
+            } else {
+                btn.classList.replace('bg-blue-600', 'bg-red-600');
+                btn.classList.replace('hover:bg-blue-500', 'hover:bg-red-500');
+                btn.innerHTML = 'SISTEM HANCUR! <i class="fa-solid fa-xmark ml-2"></i>';
+                selected.forEach(item => item.classList.replace('ring-space-glow', 'ring-red-500'));
+                step.setAttribute('data-answered', 'false');
+                
+                // Menunjukkan jawaban benar jika salah
+                document.querySelectorAll('.q4-item[data-val="correct"]').forEach(item => {
+                    if(!item.classList.contains('ring-4')) {
+                        item.classList.add('ring-4', 'ring-green-500');
+                        item.classList.remove('opacity-50');
+                    }
+                });
+            }
+        }
+
+        function calculateFinalScore() {
+            let score = 0;
+            if(document.getElementById('q1').getAttribute('data-answered') === 'true') score++;
+            if(document.getElementById('q2').getAttribute('data-answered') === 'true') score++;
+            if(document.getElementById('q3').getAttribute('data-answered') === 'true') score++;
+            if(document.getElementById('q4').getAttribute('data-answered') === 'true') score++;
+            if(document.getElementById('q5').getAttribute('data-answered') === 'true') score++;
+
+            // Sembunyikan daftar soal, tampilkan layar skor
+            document.getElementById('quiz-questions-wrapper').classList.add('hidden');
+            document.getElementById('quiz-questions-wrapper').classList.remove('flex');
+            document.getElementById('btn-back-to-lab').classList.add('hidden');
+            
+            const resultScreen = document.getElementById('quiz-result-screen');
+            resultScreen.classList.remove('hidden');
+            resultScreen.classList.add('flex');
+            
+            const scoreEl = document.getElementById('final-score');
+            scoreEl.innerText = score;
+            if(score === 5) scoreEl.className = "text-green-400";
+            else if(score >= 3) scoreEl.className = "text-yellow-400";
+            else scoreEl.className = "text-red-400";
+
+            window.scrollTo(0, 0); // Gulir ke skor
+        }
+
+
+        // --- 4. 3D Lab Logic (Full Integration) ---
+        const userSimContainer = document.getElementById('user-sim-container');
+        const container3D = document.getElementById('3d-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x020617);
+        
+        const starsGeo = new THREE.BufferGeometry();
+        const starsMat = new THREE.PointsMaterial({color: 0xffffff, size: 1.5, transparent: true, opacity: 0.8});
+        const starsVert = [];
+        for(let i=0; i<400; i++) { starsVert.push((Math.random()-0.5)*2000, (Math.random()-0.5)*2000, (Math.random()-0.5)*2000); }
+        starsGeo.setAttribute('position', new THREE.Float32BufferAttribute(starsVert, 3));
+        scene.add(new THREE.Points(starsGeo, starsMat));
+
+        const camera = new THREE.PerspectiveCamera(45, userSimContainer.clientWidth / userSimContainer.clientHeight, 1, 5000);
+        const defaultCamPos = new THREE.Vector3(0, 400, 600);
+        camera.position.copy(defaultCamPos);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(userSimContainer.clientWidth, userSimContainer.clientHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container3D.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; controls.dampingFactor = 0.05;
+        controls.maxDistance = 1500; controls.minDistance = 100;
+        controls.enableZoom = false; 
+
+        // Cahaya diterangkan agar bentuk planet jelas walau matahari belum ditarik
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8); 
+        scene.add(ambientLight);
+
+        function resize3D() {
+            if(!userSimContainer) return;
+            const width = userSimContainer.clientWidth;
+            const height = userSimContainer.clientHeight;
+            if(width === 0 || height === 0) return;
+            renderer.setSize(width, height);
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+        }
+        window.addEventListener('resize', resize3D);
+
+        document.getElementById('btn-info-sim')?.addEventListener('click', () => {
+            const panel = document.getElementById('sim-instructions-panel');
+            if (panel) panel.classList.toggle('show');
+        });
+
+        const modalContainer = document.getElementById('modal-3d-canvas');
+        const modalScene = new THREE.Scene();
+        const modalCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+        modalCamera.position.z = 4; 
+        const modalRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        modalRenderer.setSize(140, 140);
+        modalContainer.appendChild(modalRenderer.domElement);
+        modalScene.add(new THREE.AmbientLight(0xffffff, 0.5));
+        const modalLight = new THREE.PointLight(0xffffff, 1);
+        modalLight.position.set(5, 5, 5);
+        modalScene.add(modalLight);
+
+        function createEarthTex() {
+            const c = document.createElement('canvas'); c.width = 1024; c.height = 512; const cx = c.getContext('2d');
+            cx.fillStyle = '#0f52ba'; cx.fillRect(0, 0, 1024, 512); 
+            cx.fillStyle = '#228b22'; for(let i=0; i<40; i++) { cx.beginPath(); cx.arc(Math.random()*1024, Math.random()*512, Math.random()*60+20, 0, Math.PI*2); cx.fill(); }
+            cx.fillStyle = '#f0e68c'; for(let i=0; i<15; i++) { cx.beginPath(); cx.arc(Math.random()*1024, Math.random()*512, Math.random()*40+10, 0, Math.PI*2); cx.fill(); }
+            cx.fillStyle = 'rgba(255,255,255,0.4)'; for(let i=0; i<60; i++) { cx.beginPath(); cx.arc(Math.random()*1024, Math.random()*512, Math.random()*40+10, 0, Math.PI*2); cx.fill(); }
+            return new THREE.CanvasTexture(c);
+        }
+
+        function createSunTex() {
+            const c = document.createElement('canvas'); c.width = 512; c.height = 256; const cx = c.getContext('2d');
+            cx.fillStyle = '#fbbf24'; cx.fillRect(0, 0, 512, 256);
+            cx.fillStyle = 'rgba(245, 158, 11, 0.4)'; for(let i=0; i<60; i++) { cx.beginPath(); cx.arc(Math.random()*512, Math.random()*256, Math.random()*15+5, 0, Math.PI*2); cx.fill(); }
+            cx.fillStyle = 'rgba(253, 230, 138, 0.5)'; for(let i=0; i<40; i++) { cx.beginPath(); cx.arc(Math.random()*512, Math.random()*256, Math.random()*10+2, 0, Math.PI*2); cx.fill(); }
+            return new THREE.CanvasTexture(c);
+        }
+
+        function createMoonTex() {
+            const c = document.createElement('canvas'); c.width = 512; c.height = 256; const cx = c.getContext('2d');
+            cx.fillStyle = '#94a3b8'; cx.fillRect(0, 0, 512, 256); 
+            cx.fillStyle = '#64748b'; for(let i=0; i<100; i++) { cx.beginPath(); cx.arc(Math.random()*512, Math.random()*256, Math.random()*15+2, 0, Math.PI*2); cx.fill(); }
+            return new THREE.CanvasTexture(c);
+        }
+
+        const earthMat = new THREE.MeshPhongMaterial({ map: createEarthTex(), shininess: 10 });
+        const moonMat = new THREE.MeshPhongMaterial({ map: createMoonTex(), shininess: 0 });
+        const sunMat = new THREE.MeshBasicMaterial({ map: createSunTex() }); 
+
+        const earthMesh = new THREE.Mesh(new THREE.SphereGeometry(18, 32, 32), earthMat);
+        const moonMesh = new THREE.Mesh(new THREE.SphereGeometry(6, 32, 32), moonMat);
+        const sunGroup = new THREE.Group();
+        const sunMesh = new THREE.Mesh(new THREE.SphereGeometry(55, 32, 32), sunMat);
+        sunGroup.add(sunMesh);
+        sunGroup.add(new THREE.PointLight(0xffffff, 2, 2000));
+        const glowMesh = new THREE.Mesh(new THREE.SphereGeometry(65, 32, 32), new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending }));
+        sunGroup.add(glowMesh);
+
+        const modalSunMesh = new THREE.Mesh(new THREE.SphereGeometry(1.4, 32, 32), sunMat);
+        const modalEarthMesh = new THREE.Mesh(new THREE.SphereGeometry(1.4, 32, 32), earthMat);
+        const modalMoonMesh = new THREE.Mesh(new THREE.SphereGeometry(1.4, 32, 32), moonMat);
+        let activeModalMesh = null;
+
+        const earthGravityArrow = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(), 0, 0xef4444, 15, 10);
+        const sunGravityArrow = new THREE.ArrowHelper(new THREE.Vector3(-1,0,0), new THREE.Vector3(), 0, 0xef4444, 15, 10);
+        const moonGravityArrow = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(), 0, 0xef4444, 10, 5);
+        
+        const MAX_POINTS = 500;
+        const orbitGeometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(MAX_POINTS * 3);
+        orbitGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const orbitLine = new THREE.Line(orbitGeometry, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, dashed: true }));
+
+        const moonOrbitGeo = new THREE.BufferGeometry();
+        const moonOrbitPoints = [];
+        for(let i=0; i<=64; i++) moonOrbitPoints.push(Math.cos((i/64)*Math.PI*2), 0, Math.sin((i/64)*Math.PI*2));
+        moonOrbitGeo.setAttribute('position', new THREE.Float32BufferAttribute(moonOrbitPoints, 3));
+        const moonOrbitLine = new THREE.LineLoop(moonOrbitGeo, new THREE.LineBasicMaterial({color: 0xffffff, transparent: true, opacity: 0.4}));
+        moonOrbitLine.visible = false;
+        scene.add(moonOrbitLine);
+
+        const G = 1; let dynamicMoonRadius = 40; 
+        let isPlaying = false, daysElapsed = 0, timeStepMultiplier = 1, orbitCount = 0, pathPointIndex = 0;
+        let hasShownSuccess = false; 
+
+        let sunData = { placed: false, obj: sunGroup, mass: 2000, baseMass: 2000, baseRadius: 55, type: 'sun' };
+        let earthData = { placed: false, obj: earthMesh, mass: 10, baseMass: 10, baseRadius: 18, vx: 0, vz: 0, type: 'earth' };
+        let moonData = { placed: false, obj: moonMesh, mass: 1, baseMass: 1, type: 'moon', angle: 0, speed: 0.05, vx: 0, vz: 0 };
+
+        earthMesh.userData = earthData; moonMesh.userData = moonData; sunMesh.userData = sunData; 
+
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast-msg');
+            toast.innerHTML = (isError ? '⚠️ ' : '🎉 ') + msg;
+            toast.className = isError ? 'toast-error show' : 'toast-success show';
+            setTimeout(() => { toast.classList.remove('show'); }, 4000);
+        }
+
+        function initSimulation3D() {
+            scene.remove(sunGroup, earthMesh, moonMesh, earthGravityArrow, sunGravityArrow, moonGravityArrow, orbitLine);
+            moonOrbitLine.visible = false;
+            sunData.placed = earthData.placed = moonData.placed = false;
+            
+            document.getElementById('btn-spawn-sun')?.classList.remove('hidden');
+            document.getElementById('btn-spawn-earth')?.classList.remove('hidden');
+            document.getElementById('btn-spawn-moon')?.classList.remove('hidden');
+            
+            daysElapsed = 0; orbitCount = 0; pathPointIndex = 0; orbitGeometry.setDrawRange(0,0);
+            hasShownSuccess = false; document.getElementById('toast-msg')?.classList.remove('show');
+            
+            if (document.getElementById('grav-on')) document.getElementById('grav-on').checked = false;
+            if (document.getElementById('grav-off')) document.getElementById('grav-off').checked = false;
+            if (document.getElementById('cb-force')) document.getElementById('cb-force').checked = false;
+            if (document.getElementById('cb-path')) document.getElementById('cb-path').checked = false;
+            if (document.getElementById('slider-sun')) document.getElementById('slider-sun').value = 0.5; 
+            if (document.getElementById('slider-earth')) document.getElementById('slider-earth').value = 0.5; 
+            if (document.getElementById('slider-moon')) document.getElementById('slider-moon').value = 0.5; 
+            if (document.getElementById('slider-zoom')) document.getElementById('slider-zoom').value = 0.3;
+            
+            if (document.getElementById('empty-hint')) document.getElementById('empty-hint').style.display = 'block';
+            document.getElementById('right-panels')?.classList.add('hidden');
+            document.getElementById('btn-toggle-inv')?.classList.add('pulse-anim');
+            
+            let initialScale = Math.sqrt(0.5);
+            sunMesh.scale.set(initialScale, initialScale, initialScale); 
+            glowMesh.scale.set(initialScale, initialScale, initialScale); 
+            earthMesh.scale.set(initialScale, initialScale, initialScale); 
+            moonMesh.scale.set(initialScale, initialScale, initialScale);
+            sunData.mass = sunData.baseMass * 0.5; 
+            earthData.mass = earthData.baseMass * 0.5; 
+            moonData.mass = moonData.baseMass * 0.5;
+            
+            moonData.vx = 0; moonData.vz = 0; moonData.angle = 0;
+            earthData.vx = 0; earthData.vz = 0;
+
+            camera.zoom = 0.3; camera.updateProjectionMatrix();
+            recenterCamera();
+            updateTimeUI();
+        }
+
+        function calculateOrbit(planetData, centerData) {
+            let dx = planetData.obj.position.x - centerData.obj.position.x, dz = planetData.obj.position.z - centerData.obj.position.z;
+            let dist = Math.sqrt(dx*dx + dz*dz);
+            if (dist > 1) {
+                let v = Math.sqrt((G * centerData.mass) / dist);
+                planetData.vx = -v * (dz / dist); planetData.vz = v * (dx / dist);
+            }
+        }
+
+        function updatePhysics3D() {
+            if(!sunData.placed && !earthData.placed && !moonData.placed) return;
+            let dt = 1 * timeStepMultiplier; 
+            let previousDaysElapsed = daysElapsed;
+
+            if(sunData.placed) sunMesh.rotation.y += 0.01 * dt;
+            if(earthData.placed) earthMesh.rotation.y += 0.05 * dt; 
+
+            if (sunData.placed && earthData.placed && document.getElementById('grav-on')?.checked) {
+                let dx = sunData.obj.position.x - earthData.obj.position.x, dz = sunData.obj.position.z - earthData.obj.position.z;
+                let dist = Math.max(1, Math.sqrt(dx*dx + dz*dz));
+                let expectedV = Math.sqrt((G * sunData.mass) / dist);
+                daysElapsed += (dt / ((2 * Math.PI * dist) / expectedV)) * 365;
+            } else if (earthData.placed || moonData.placed) {
+                daysElapsed += dt * 0.65; 
+            }
+
+            let daysDelta = daysElapsed - previousDaysElapsed;
+
+            if (earthData.placed) {
+                if (sunData.placed && document.getElementById('grav-on')?.checked) {
+                    let dx = sunData.obj.position.x - earthData.obj.position.x, dz = sunData.obj.position.z - earthData.obj.position.z;
+                    let distSq = dx*dx + dz*dz, dist = Math.sqrt(distSq);
+
+                    if (dist < sunData.baseRadius * sunMesh.scale.x + earthData.baseRadius * earthMesh.scale.x) {
+                        isPlaying = false; togglePlayUI(); 
+                    } else {
+                        let a = ((G * sunData.mass * earthData.mass) / distSq) / earthData.mass;
+                        earthData.vx += a * (dx / dist) * dt; earthData.vz += a * (dz / dist) * dt;
+                    }
+                }
+                earthData.obj.position.x += earthData.vx * dt; earthData.obj.position.z += earthData.vz * dt;
+
+                if (document.getElementById('cb-path')?.checked && sunData.placed) {
+                    let recordInterval = Math.max(1, Math.floor(5 / timeStepMultiplier));
+                    if (orbitCount % recordInterval === 0) {
+                        if (pathPointIndex < MAX_POINTS) {
+                            positions[pathPointIndex * 3] = earthData.obj.position.x;
+                            positions[pathPointIndex * 3 + 1] = earthData.obj.position.y;
+                            positions[pathPointIndex * 3 + 2] = earthData.obj.position.z;
+                            pathPointIndex++;
+                        } else {
+                            for (let i = 0; i < (MAX_POINTS - 1) * 3; i++) { positions[i] = positions[i + 3]; }
+                            positions[(MAX_POINTS - 1) * 3] = earthData.obj.position.x;
+                            positions[(MAX_POINTS - 1) * 3 + 1] = earthData.obj.position.y;
+                            positions[(MAX_POINTS - 1) * 3 + 2] = earthData.obj.position.z;
+                        }
+                        orbitGeometry.setDrawRange(0, pathPointIndex); orbitGeometry.attributes.position.needsUpdate = true;
+                    }
+                    orbitCount++;
+                } else { orbitGeometry.setDrawRange(0,0); pathPointIndex = 0; }
+            }
+
+            if (moonData.placed && earthData.placed) {
+                if (document.getElementById('grav-on')?.checked) {
+                    moonData.angle += (daysDelta / 27.3) * Math.PI * 2;
+                    let targetX = earthData.obj.position.x + Math.cos(moonData.angle) * dynamicMoonRadius;
+                    let targetZ = earthData.obj.position.z + Math.sin(moonData.angle) * dynamicMoonRadius;
+                    
+                    if (dt > 0) {
+                        moonData.vx = (targetX - moonData.obj.position.x) / dt;
+                        moonData.vz = (targetZ - moonData.obj.position.z) / dt;
+                    }
+
+                    moonData.obj.position.x = targetX;
+                    moonData.obj.position.z = targetZ;
+                    moonMesh.rotation.y = -moonData.angle; 
+                } else {
+                    moonData.obj.position.x += moonData.vx * dt;
+                    moonData.obj.position.z += moonData.vz * dt;
+                }
+            }
+
+            if (!hasShownSuccess && isPlaying && sunData.placed && earthData.placed && moonData.placed && daysElapsed > 5 && document.getElementById('grav-on')?.checked) {
+                hasShownSuccess = true;
+                showToast("Hebat! Tata Surya Bekerja!");
+            }
+        }
+
+        function updateVisuals3D() {
+            if (document.getElementById('cb-force')?.checked) {
+                if(sunData.placed && earthData.placed) {
+                    scene.add(earthGravityArrow); scene.add(sunGravityArrow);
+                    let dirToSun = new THREE.Vector3().subVectors(sunData.obj.position, earthData.obj.position);
+                    let dirNorm = dirToSun.clone().normalize();
+                    let earthScale = earthData.obj.scale.x; let sunScale = sunData.obj.scale.x;
+                    let earthRadiusScaled = earthData.baseRadius * earthScale; let sunRadiusScaled = sunData.baseRadius * sunScale;
+                    
+                    let startEarth = earthData.obj.position.clone().add(dirNorm.clone().multiplyScalar(earthRadiusScaled + 2));
+                    earthGravityArrow.position.copy(startEarth); earthGravityArrow.setDirection(dirNorm);
+                    earthGravityArrow.setLength(35 * earthScale, 12 * earthScale, 8 * earthScale);
+
+                    let dirToEarth = dirNorm.clone().negate();
+                    let startSun = sunData.obj.position.clone().add(dirToEarth.clone().multiplyScalar(sunRadiusScaled + 2));
+                    sunGravityArrow.position.copy(startSun); sunGravityArrow.setDirection(dirToEarth);
+                    sunGravityArrow.setLength(35 * sunScale, 12 * sunScale, 8 * sunScale);
+                } else { 
+                    scene.remove(earthGravityArrow); scene.remove(sunGravityArrow);
+                }
+
+                if(earthData.placed && moonData.placed) {
+                    scene.add(moonGravityArrow);
+                    let dirToEarth = new THREE.Vector3().subVectors(earthData.obj.position, moonData.obj.position);
+                    let dirNorm = dirToEarth.clone().normalize();
+                    let moonScale = moonData.obj.scale.x; let moonRadiusScaled = moonData.baseRadius * moonScale;
+
+                    let startMoon = moonData.obj.position.clone().add(dirNorm.clone().multiplyScalar(moonRadiusScaled + 2));
+                    moonGravityArrow.position.copy(startMoon); moonGravityArrow.setDirection(dirNorm);
+                    moonGravityArrow.setLength(20 * moonScale, 8 * moonScale, 5 * moonScale);
+                } else { scene.remove(moonGravityArrow); }
+            } else { 
+                scene.remove(earthGravityArrow, sunGravityArrow, moonGravityArrow); 
+            }
+
+            if (moonData.placed && earthData.placed && document.getElementById('cb-path')?.checked) {
+                moonOrbitLine.visible = true; moonOrbitLine.position.copy(earthData.obj.position);
+                moonOrbitLine.scale.set(dynamicMoonRadius, dynamicMoonRadius, dynamicMoonRadius);
+            } else { moonOrbitLine.visible = false; }
+        }
+
+        function updateTimeUI() {
+            let days = Math.floor(daysElapsed);
+            let hours = Math.floor((daysElapsed % 1) * 24);
+            const daysDisplay = document.getElementById('days-display');
+            if(daysDisplay) daysDisplay.textContent = `${days} Hari ${hours} Jam`;
+            
+            let moonDisplay = document.getElementById('moon-display');
+            if (moonDisplay) {
+                if (moonData.placed && earthData.placed) {
+                    moonDisplay.style.display = 'block';
+                    moonDisplay.textContent = `Bulan: ${Math.floor(daysElapsed / 27.3)} Putaran`;
+                } else { 
+                    moonDisplay.style.display = 'none'; 
+                }
+            }
+        }
+
+        const raycaster = new THREE.Raycaster(); const mouse = new THREE.Vector2(); const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); 
+        let isDragging = false, draggedData = null, wasPlayingBeforeDrag = false, clickTime = 0, dragStarted = false, startX = 0, startY = 0;
+
+        function getPointerPos(e) {
+            if (e.clientX !== undefined) return { x: e.clientX, y: e.clientY };
+            if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            if (e.changedTouches && e.changedTouches.length > 0) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+            return { x: 0, y: 0 };
+        }
+
+        function getIntersects(event) {
+            const rect = container3D.getBoundingClientRect();
+            let pos = getPointerPos(event);
+            mouse.x = ((pos.x - rect.left) / rect.width) * 2 - 1; 
+            mouse.y = -((pos.y - rect.top) / rect.height) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+        }
+
+        document.querySelectorAll('.btn-spawn').forEach(btn => {
+            btn.addEventListener('pointerdown', (e) => {
+                startSpawn(btn.getAttribute('data-type'), e);
+            });
+        });
+
+        window.startSpawn = function(type, e) {
+            e.preventDefault(); e.stopPropagation();
+            
+            const pos = getPointerPos(e);
+            startX = pos.x; startY = pos.y;
+
+            if (type === 'sun') { draggedData = sunData; }
+            else if (type === 'earth') { draggedData = earthData; }
+            else if (type === 'moon') { draggedData = moonData; }
+
+            isDragging = true; dragStarted = false; draggedData.justSpawned = true; clickTime = Date.now();
+            wasPlayingBeforeDrag = isPlaying; if (isPlaying) { isPlaying = false; togglePlayUI(); }
+            
+            if(document.getElementById('empty-hint')) document.getElementById('empty-hint').style.display = 'none';
+            document.getElementById('btn-spawn-' + type)?.classList.add('hidden');
+            scene.add(draggedData.obj);
+            if (draggedData === earthData) scene.add(orbitLine);
+
+            getIntersects(e);
+            const intersect = new THREE.Vector3();
+            raycaster.ray.intersectPlane(dragPlane, intersect);
+            if(intersect) draggedData.obj.position.copy(intersect);
+        };
+
+        container3D?.addEventListener('pointerdown', (e) => {
+            getIntersects(e);
+            const intersects = raycaster.intersectObjects([sunMesh, earthMesh, moonMesh]);
+            if (intersects.length > 0) {
+                clickTime = Date.now(); isDragging = true; dragStarted = true; controls.enabled = false;
+                draggedData = intersects[0].object.userData;
+                draggedData.justSpawned = false; 
+                wasPlayingBeforeDrag = isPlaying; if (isPlaying) { isPlaying = false; togglePlayUI(); }
+            }
+        });
+
+        function handleDragMove(e) {
+            if (!isDragging || !draggedData) return;
+
+            const pos = getPointerPos(e);
+
+            if (!dragStarted && draggedData.justSpawned) {
+                let dist = Math.hypot(pos.x - startX, pos.y - startY);
+                if (dist > 15) { 
+                    dragStarted = true;
+                    controls.enabled = false;
+                } else {
+                    return; 
+                }
+            }
+
+            if (dragStarted || !draggedData.justSpawned) {
+                getIntersects(e); const intersect = new THREE.Vector3(); raycaster.ray.intersectPlane(dragPlane, intersect);
+                if (intersect) {
+                    draggedData.obj.position.copy(intersect);
+                    if (draggedData === earthData) { orbitCount = 0; pathPointIndex = 0; orbitGeometry.setDrawRange(0,0); } 
+                    else if (draggedData === moonData && earthData.placed) {
+                        let dx = moonData.obj.position.x - earthData.obj.position.x, dz = moonData.obj.position.z - earthData.obj.position.z;
+                        if (dx === 0 && dz === 0) dx = 1;
+                        dynamicMoonRadius = Math.max(40, Math.sqrt(dx*dx + dz*dz));
+                        moonData.angle = Math.atan2(dz, dx);
+                        moonData.obj.position.x = earthData.obj.position.x + Math.cos(moonData.angle) * dynamicMoonRadius;
+                        moonData.obj.position.z = earthData.obj.position.z + Math.sin(moonData.angle) * dynamicMoonRadius;
+                    }
+                }
+            }
+        }
+
+        function handleDragEnd(e) {
+            if (!isDragging) return;
+            
+            if (draggedData && draggedData.justSpawned && !dragStarted) {
+                scene.remove(draggedData.obj); 
+                draggedData.placed = false;
+                document.getElementById('btn-spawn-' + draggedData.type)?.classList.remove('hidden');
+                if (draggedData === earthData) { scene.remove(orbitLine); orbitCount = 0; pathPointIndex = 0; orbitGeometry.setDrawRange(0,0); }
+                if (draggedData === moonData) { moonOrbitLine.visible = false; }
+                
+                showToast("Tarik (geser) ikon ke area simulasi!", true);
+                
+                draggedData.justSpawned = false;
+                isDragging = false; draggedData = null; controls.enabled = true; 
+                if (wasPlayingBeforeDrag) { isPlaying = true; togglePlayUI(); }
+                return; 
+            }
+
+            if (Date.now() - clickTime < 200 && draggedData && !draggedData.justSpawned) {
+                showInfo(draggedData.type);
+            }
+            else if (draggedData) {
+                draggedData.placed = true; 
+                if (draggedData === earthData && sunData.placed) calculateOrbit(earthData, sunData);
+                else if (draggedData === earthData && !sunData.placed) { earthData.vx = 0; earthData.vz = 0; }
+                else if (draggedData === sunData && earthData.placed) { calculateOrbit(earthData, sunData); orbitCount = 0; pathPointIndex = 0; orbitGeometry.setDrawRange(0,0); }
+                if (draggedData === moonData) {
+                    if(!earthData.placed) {
+                        scene.remove(moonData.obj); moonData.placed = false; 
+                        document.getElementById('btn-spawn-moon')?.classList.remove('hidden');
+                        showToast("Bulan butuh Bumi untuk diorbit!", true);
+                    } else {
+                        let dx = moonData.obj.position.x - earthData.obj.position.x, dz = moonData.obj.position.z - earthData.obj.position.z;
+                        dynamicMoonRadius = Math.max(40, Math.sqrt(dx*dx + dz*dz));
+                        moonData.angle = Math.atan2(dz, dx);
+                        
+                        let daysPerFrame = 0.65;
+                        if (sunData.placed && document.getElementById('grav-on')?.checked) {
+                            let distToSun = Math.max(1, Math.sqrt(earthData.obj.position.x**2 + earthData.obj.position.z**2));
+                            let expectedVEarth = Math.sqrt((G * sunData.mass) / distToSun);
+                            daysPerFrame = (1 / ((2 * Math.PI * distToSun) / expectedVEarth)) * 365;
+                        }
+                        
+                        let escapeSpeed = (Math.PI * 2 * dynamicMoonRadius) / 27.3 * daysPerFrame;
+                        moonData.vx = -Math.sin(moonData.angle) * escapeSpeed + earthData.vx;
+                        moonData.vz = Math.cos(moonData.angle) * escapeSpeed + earthData.vz;
+                    }
+                }
+            }
+            if (draggedData) draggedData.justSpawned = false;
+            isDragging = false; draggedData = null; controls.enabled = true; 
+            if (wasPlayingBeforeDrag) { isPlaying = true; togglePlayUI(); }
+            updateTimeUI();
+        }
+
+        window.addEventListener('pointermove', handleDragMove);
+        window.addEventListener('pointerup', handleDragEnd);
+
+        let currentInfoType = '';
+        const materiData = {
+            sun: { title: 'Matahari (Bintang)', desc: 'Matahari adalah bola gas raksasa yang sangat panas. Gravitasinya yang kuat menahan planet agar tidak terpental ke luar angkasa!' },
+            earth: { title: 'Bumi (Planet)', desc: 'Bumi berputar pada porosnya (<b>Rotasi</b>) yang mengakibatkan Siang dan Malam. Bumi juga bergerak mengelilingi Matahari pada jalurnya (<b>Revolusi</b>). Butuh waktu <b>365 hari</b> untuk satu revolusi.' },
+            moon: { title: 'Bulan (Satelit)', desc: 'Bulan adalah satelit alami Bumi. Ia berputar pada porosnya dan juga bergerak mengelilingi Bumi (<b>Revolusi Bulan</b>). 1 putaran penuh Bulan membutuhkan waktu sekitar <b>27.3 hari</b> Bumi.' }
+        };
+
+        function showInfo(type) {
+            currentInfoType = type;
+            if(isPlaying) { isPlaying = false; togglePlayUI(); }
+            
+            modalScene.remove(modalSunMesh, modalEarthMesh, modalMoonMesh);
+            if(type === 'sun') { activeModalMesh = modalSunMesh; modalScene.add(modalSunMesh); }
+            if(type === 'earth') { activeModalMesh = modalEarthMesh; modalScene.add(modalEarthMesh); }
+            if(type === 'moon') { activeModalMesh = modalMoonMesh; modalScene.add(modalMoonMesh); }
+
+            document.getElementById('modal-title').textContent = materiData[type].title;
+            document.getElementById('modal-desc').innerHTML = materiData[type].desc; 
+            document.getElementById('info-modal').classList.remove('hidden');
+        }
+
+        document.getElementById('btn-return-inv')?.addEventListener('click', () => {
+            let dataObj = currentInfoType === 'sun' ? sunData : (currentInfoType === 'earth' ? earthData : moonData);
+            if(dataObj) {
+                scene.remove(dataObj.obj); dataObj.placed = false;
+                document.getElementById('btn-spawn-' + currentInfoType)?.classList.remove('hidden');
+                
+                if (currentInfoType === 'sun') {
+                    earthData.vx = 0; earthData.vz = 0;
+                }
+                
+                if (currentInfoType === 'earth') { scene.remove(orbitLine); orbitCount = 0; pathPointIndex = 0; orbitGeometry.setDrawRange(0,0); }
+                if (currentInfoType === 'moon') { moonOrbitLine.visible = false; }
+            }
+            document.getElementById('info-modal').classList.add('hidden');
+            if(!isPlaying) { updateVisuals3D(); renderer.render(scene, camera); }
+            updateTimeUI(); 
+        });
+
+        document.getElementById('btn-close-modal')?.addEventListener('click', () => document.getElementById('info-modal').classList.add('hidden'));
+
+        function togglePlayUI() {
+            document.getElementById('icon-play').style.display = isPlaying ? 'none' : 'inline';
+            document.getElementById('icon-pause').style.display = isPlaying ? 'inline' : 'none';
+        }
+
+        document.getElementById('btn-play')?.addEventListener('click', () => { isPlaying = !isPlaying; togglePlayUI(); });
+        document.getElementById('btn-step-fwd')?.addEventListener('click', () => { if(isPlaying){isPlaying=false; togglePlayUI();} updatePhysics3D(); });
+        document.getElementById('btn-step-back')?.addEventListener('click', () => { if(isPlaying){isPlaying=false; togglePlayUI();} });
+        document.getElementById('btn-clear-days')?.addEventListener('click', () => { daysElapsed = 0; updateTimeUI(); } );
+        document.getElementById('btn-reset-all')?.addEventListener('click', () => { isPlaying = false; togglePlayUI(); initSimulation3D(); });
+
+        document.getElementById('btn-toggle-inv')?.addEventListener('click', () => {
+            document.getElementById('inv-items').classList.toggle('hidden');
+            document.getElementById('btn-toggle-inv').classList.remove('pulse-anim');
+        });
+        document.getElementById('btn-toggle-right')?.addEventListener('click', () => document.getElementById('right-panels').classList.toggle('hidden'));
+        document.getElementById('btn-toggle-bottom')?.addEventListener('click', () => {
+            const bc = document.getElementById('bottom-center'); bc.classList.toggle('hidden');
+            document.getElementById('btn-toggle-bottom').textContent = bc.classList.contains('hidden') ? '▲' : '▼';
+        });
+
+        function recenterCamera() {
+            camera.position.copy(defaultCamPos);
+            camera.zoom = parseFloat(document.getElementById('slider-zoom').value);
+            camera.updateProjectionMatrix(); 
+            if (sunData.placed) {
+                controls.target.copy(sunData.obj.position);
+            } else {
+                controls.target.set(0, 0, 0);
+            }
+            controls.update();
+        }
+        document.getElementById('btn-recenter')?.addEventListener('click', recenterCamera);
+
+        document.getElementById('slider-sun')?.addEventListener('input', (e) => { let mult = parseFloat(e.target.value); sunData.mass = sunData.baseMass * mult; sunMesh.scale.set(Math.sqrt(mult), Math.sqrt(mult), Math.sqrt(mult)); glowMesh.scale.set(Math.sqrt(mult), Math.sqrt(mult), Math.sqrt(mult)); });
+        document.getElementById('slider-earth')?.addEventListener('input', (e) => { let mult = parseFloat(e.target.value); earthData.mass = earthData.baseMass * mult; earthMesh.scale.set(Math.sqrt(mult), Math.sqrt(mult), Math.sqrt(mult)); });
+        document.getElementById('slider-moon')?.addEventListener('input', (e) => { let mult = parseFloat(e.target.value); moonData.mass = moonData.baseMass * mult; moonMesh.scale.set(Math.sqrt(mult), Math.sqrt(mult), Math.sqrt(mult)); });
+        document.getElementById('slider-zoom')?.addEventListener('input', (e) => { camera.zoom = parseFloat(e.target.value); camera.updateProjectionMatrix(); });
+        document.querySelectorAll('input[name="speed"]').forEach(radio => radio.addEventListener('change', (e) => timeStepMultiplier = parseFloat(e.target.value)));
+
+        function animate3D() { 
+            requestAnimationFrame(animate3D); 
+            if (isPlaying) updatePhysics3D();
+            updateVisuals3D(); controls.update(); 
+            if(!document.getElementById('cb-path')?.checked) { orbitGeometry.setDrawRange(0,0); pathPointIndex = 0; }
+            updateTimeUI(); 
+            renderer.render(scene, camera);
+            if (!document.getElementById('info-modal').classList.contains('hidden') && activeModalMesh) {
+                activeModalMesh.rotation.y += 0.015; modalRenderer.render(modalScene, modalCamera);
+            }
+        }
+        
+        initSimulation3D();
+        animate3D();
+
+    </script>
+</body>
+</html>
